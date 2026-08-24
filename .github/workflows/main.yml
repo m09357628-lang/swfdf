@@ -1,40 +1,27 @@
-name: RDP
+name: Windows RDP (Tailscale)
 
-on:
-  workflow_dispatch:
+on: workflow_dispatch
 
 jobs:
-  rdp:
+  build:
     runs-on: windows-latest
-    timeout-minutes: 3600
-
     steps:
-      - name: Enable RDP
-        run: |
-          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
-          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+    - name: Download and Install Tailscale
+      run: |
+        Invoke-WebRequest https://pkgs.tailscale.com/stable/tailscale-setup-latest-amd64.exe -OutFile tailscale.exe
+        Start-Process tailscale.exe -ArgumentList "/quiet" -Wait
 
-      - name: Create RDP User
-        run: |
-          $Password = ConvertTo-SecureString '${{ secrets.RDP_PASSWORD }}' -AsPlainText -Force
-          New-LocalUser -Name '${{ secrets.RDP_USERNAME }}' -Password $Password -AccountNeverExpires
-          Add-LocalGroupMember -Group "Administrators" -Member '${{ secrets.RDP_USERNAME }}'
-          Add-LocalGroupMember -Group "Remote Desktop Users" -Member '${{ secrets.RDP_USERNAME }}'
+    - name: Connect Tailscale
+      run: |
+        & "C:\Program Files\Tailscale\tailscale.exe" up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }}
 
-      - name: Install and Connect Tailscale
-        run: |
-          $tsUrl = "https://pkgs.tailscale.com/stable/tailscale-setup-latest.exe"
-          Invoke-WebRequest -Uri $tsUrl -OutFile "$env:TEMP\tailscale.exe"
-          Start-Process "$env:TEMP\tailscale.exe" -ArgumentList "/quiet" -Wait
-          
-          $runId = $env:GITHUB_RUN_ID
-          & "$env:ProgramFiles\Tailscale\tailscale.exe" up --authkey="${{ secrets.TAILSCALE_AUTH_KEY }}" --hostname="gh-runner-$runId"
-          
-          $tsIP = & "$env:ProgramFiles\Tailscale\tailscale.exe" ip -4
-          Write-Host "Tailscale IP: $tsIP"
+    - name: Enable RDP
+      run: |
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
+        Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+        Set-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString "YourPassword123!" -AsPlainText -Force)
 
-      - name: Keep Runner Alive
-        run: |
-          while ($true) {
-            Start-Sleep -Seconds 300
-          }
+    - name: Keep Alive
+      run: |
+        while ($true) { Start-Sleep -s 3600 }
+        
