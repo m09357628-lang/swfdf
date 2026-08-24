@@ -1,4 +1,4 @@
-name: RDP via Tailscale
+name: RDP
 
 on:
   workflow_dispatch:
@@ -16,10 +16,10 @@ jobs:
 
       - name: Create RDP User
         run: |
-          $Password = ConvertTo-SecureString "${{ secrets.RDP_PASSWORD }}" -AsPlainText -Force
-          New-LocalUser -Name "${{ secrets.RDP_USERNAME }}" -Password $Password -AccountNeverExpires
-          Add-LocalGroupMember -Group "Administrators" -Member "${{ secrets.RDP_USERNAME }}"
-          Add-LocalGroupMember -Group "Remote Desktop Users" -Member "${{ secrets.RDP_USERNAME }}"
+          $Password = ConvertTo-SecureString '${{ secrets.RDP_PASSWORD }}' -AsPlainText -Force
+          New-LocalUser -Name '${{ secrets.RDP_USERNAME }}' -Password $Password -AccountNeverExpires
+          Add-LocalGroupMember -Group "Administrators" -Member '${{ secrets.RDP_USERNAME }}'
+          Add-LocalGroupMember -Group "Remote Desktop Users" -Member '${{ secrets.RDP_USERNAME }}'
 
       - name: Install and Connect Tailscale
         run: |
@@ -27,7 +27,8 @@ jobs:
           Invoke-WebRequest -Uri $tsUrl -OutFile "$env:TEMP\tailscale.exe"
           Start-Process "$env:TEMP\tailscale.exe" -ArgumentList "/quiet" -Wait
           
-          & "$env:ProgramFiles\Tailscale\tailscale.exe" up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=gh-runner-$env:GITHUB_RUN_ID
+          $runId = $env:GITHUB_RUN_ID
+          & "$env:ProgramFiles\Tailscale\tailscale.exe" up --authkey="${{ secrets.TAILSCALE_AUTH_KEY }}" --hostname="gh-runner-$runId"
           
           $tsIP = & "$env:ProgramFiles\Tailscale\tailscale.exe" ip -4
           Write-Host "Tailscale IP: $tsIP"
@@ -38,3 +39,4 @@ jobs:
             Start-Sleep -Seconds 300
           }
           
+  
